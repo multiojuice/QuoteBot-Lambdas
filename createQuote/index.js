@@ -5,6 +5,7 @@ const createQuote = async (message, text, db) => {
   const params = {
     Item: {
       id: {'S': `${message.chat.id}-${message.message_id}`},
+      chat_id: {'S': `${message.chat.id}`},
       text: {'S' : `${text}`},
       poster: {'S' : `${message.from.first_name} ${message.from.last_name}`}
     },
@@ -28,19 +29,45 @@ const createQuote = async (message, text, db) => {
 }
 
 const randomQuote = async (message, text, db) => {
-  const params = {
-    Item: {
-      id: {'S': `${message.chat.id}-${message.message_id}`},
-      text: {'S' : `${text}`},
-      poster: {'S' : `${message.from.first_name} ${message.from.last_name}`}
+  var params = {
+    KeyConditionExpression: "#chatId = :chatId",
+    ExpressionAttributeNames:{
+        "#chatId": "chat_id"
     },
-    TableName: 'quotes'
-  }
+    ExpressionAttributeValues: {
+        ":chatId": {'S': `${message.chat.id}`}
+    },
+    IndexName: "chat_id-index",
+    ProjectionExpression: "id", 
+    TableName: "quotes"
+   };
+   
+  const {Items} = await db.query(params).promise();
   
-  const response = await db.putItem(params).promise();
+  if(!Items.length || Items.length === 0) {
+     return {
+        statusCode: 200,
+        isBase64Encoded: false,
+        headers: {},
+        body: JSON.stringify({
+          method: 'sendMessage',
+          chat_id: message.chat.id,
+          text: "Error; try adding some quotes"
+        })
+    };
+   }
   
-  console.log('CHAOS', response)
-    
+  const randomIndex = Math.floor(Math.random() * Math.floor(Items.length));
+  
+  var getItemParams = {
+    Key: {
+     "id": Items[randomIndex].id
+    }, 
+    TableName: "quotes"
+  };
+  
+  const {Item} = await db.getItem(getItemParams).promise();
+  
   return {
     statusCode: 200,
     isBase64Encoded: false,
@@ -48,7 +75,7 @@ const randomQuote = async (message, text, db) => {
     body: JSON.stringify({
       method: 'sendMessage',
       chat_id: message.chat.id,
-      text: "Successfully inserted"
+      text: Item.text.S
     })
   };
 }
@@ -74,14 +101,30 @@ exports.handler = async (event) => {
     };
   }
   
-  const splitIndex = message.text.indexOf(' ');
+  let splitIndex = message.text.indexOf(' ');
+  if (splitIndex == -1) splitIndex = message.text.length;
   const command = message.text.slice(1, splitIndex);
   const text = message.text.slice(splitIndex);
   
+  console.log('BLAH', splitIndex, command, text)
+  
   switch (command) {
-    case 'add': 
-      return await createQuote(message, text, dynamodb);
+    case 'add':
+    case 'add@quote_this_bot':
+      if (text)
+        return await createQuote(message, text, dynamodb);
+      return {
+        statusCode: 200,
+        isBase64Encoded: false,
+        headers: {},
+        body: JSON.stringify({
+          method: 'sendMessage',
+          chat_id: message.chat.id,
+          text: "Error; empty add"
+        })
+      };
     case 'r':
+    case 'r@quote_this_bot':
       return await randomQuote(message, text, dynamodb);
     default:
       return {
