@@ -1,0 +1,9 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "quotebot"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-as6wu3697nq1"
+s3_prefix = "quotebot"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"

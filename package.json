@@ -1,0 +1,10 @@
+{
+  "name": "quotebot",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "author": "Owen Sullivan",
+  "license": "ISC",
+  "devDependencies": {
+    "aws-sdk": "^2.762.0"
+  }
+}

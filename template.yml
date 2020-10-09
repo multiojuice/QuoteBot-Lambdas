@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  quotebot
+
+# Transform section specifies one or more macros that AWS CloudFormation uses to process your template
+Transform:
+- AWS::Serverless-2016-10-31
+
+#Global for lambdas
+Globals:
+  Function:
+    Runtime: nodejs12.x
+    MemorySize: 128
+    Timeout: 100
+    Layers:
+      - !Ref LambdaDepLayer
+
+Resources:
+  # API Gateway for Trana API 
+  QuoteBotApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: "QuoteBotAPI"
+      StageName: "dev"
+      EndpointConfiguration: "REGIONAL"
+
+  QuoteBotLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/index.js
+      FunctionName: !Sub "QuoteBotLambda-" # Use the handler filename at the end
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - AmazonDynamoDBFullAccess
+      Events:
+        HttpPost:
+          Type: Api
+          Properties:
+            Path: '/'
+            Method: POST
+            RestApiId: QuoteBotApiGateway
+
+  LambdaDepLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+        LayerName: lambda-general-dependencies
+        Description: Dependencies for all lambdas
+        ContentUri: dependencies/
+        CompatibleRuntimes:
+          - nodejs12.x
+        LicenseInfo: 'MIT'
+        RetentionPolicy: Retain
+
+  QuoteBotDynamoDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: PK
+        AttributeType: S
+      - AttributeName: SK
+        AttributeType: S
+      KeySchema:
+      - AttributeName: PK
+        KeyType: HASH
+      - AttributeName: SK
+        KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TableName: QuoteBotDB
